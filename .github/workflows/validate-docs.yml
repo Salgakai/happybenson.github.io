@@ -1,0 +1,50 @@
+# .github/workflows/validate-docs.yml
+name: Validate docs.json
+
+on:
+  push:
+    paths:
+      - 'docs.json'
+  pull_request:
+    paths:
+      - 'docs.json'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 驗證 JSON 格式是否正確
+        run: |
+          python3 -c "
+          import json, sys
+
+          with open('docs.json', encoding='utf-8') as f:
+              data = json.load(f)
+
+          required = {'title', 'tag', 'desc', 'url'}
+          errors = []
+
+          if not isinstance(data, list):
+              errors.append('docs.json 必須是陣列（array）')
+          else:
+              for i, item in enumerate(data):
+                  missing = required - item.keys()
+                  if missing:
+                      errors.append(f'第 {i+1} 筆缺少欄位：{missing}')
+                  for field in ['title', 'tag', 'desc', 'url']:
+                      if field in item and not isinstance(item[field], str):
+                          errors.append(f'第 {i+1} 筆的 {field} 必須是字串')
+                  if 'url' in item and not item['url'].startswith('http'):
+                      errors.append(f'第 {i+1} 筆的 url 格式不正確：{item[\"url\"]}')
+
+          if errors:
+              print('❌ 驗證失敗：')
+              for e in errors:
+                  print(' -', e)
+              sys.exit(1)
+          else:
+              print(f'✅ 驗證通過！共 {len(data)} 筆文件。')
+          "
